@@ -1,0 +1,15 @@
+[Unit]
+Description=TobiGT MIDI-UDP bridge for PiPedal
+After=pipedald.service
+Wants=pipedald.service
+
+[Service]
+Type=simple
+User=__USER__
+EnvironmentFile=-/etc/animalmidi/env
+ExecStart=__HOME__/.animalmidi-pipedal/bin/python3 __SCRIPT_DIR__/animalMidi.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
