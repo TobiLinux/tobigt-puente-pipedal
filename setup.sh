@@ -29,9 +29,9 @@ else
     cat <<'EOF' | sudo tee /etc/animalmidi/env > /dev/null
 # TobiGT — Variables de entorno (opcionales, estos son los defaults)
 # Descomentar y cambiar según el setup.
-#TOBIGT_UDP_HOST=10.42.0.1
+#TOBIGT_UDP_HOST=192.168.60.1
 #TOBIGT_UDP_PORT=20001
-#TOBIGT_ESP_HOST=10.42.0.195
+#TOBIGT_ESP_HOST=192.168.60.195
 #TOBIGT_ESP_PORT=4097
 #TOBIGT_PIPEDAL_WS=ws://127.0.0.1:80/pipedal
 #TOBIGT_PIPEDAL_MIDI=PiPedal:in

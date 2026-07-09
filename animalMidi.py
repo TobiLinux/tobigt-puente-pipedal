@@ -40,10 +40,10 @@ import websockets
 # Configuración — por entorno (con defaults), sobreescribir según el setup
 # =============================================================================
 
-UDP_HOST = os.environ.get("TOBIGT_UDP_HOST", "10.42.0.1")
+UDP_HOST = os.environ.get("TOBIGT_UDP_HOST", "192.168.60.1")
 UDP_PORT = int(os.environ.get("TOBIGT_UDP_PORT", "20001"))
 
-ESP_HOST = os.environ.get("TOBIGT_ESP_HOST", "10.42.0.195")
+ESP_HOST = os.environ.get("TOBIGT_ESP_HOST", "192.168.60.195")
 ESP_PORT = int(os.environ.get("TOBIGT_ESP_PORT", "4097"))
 ESP_ADDR = (ESP_HOST, ESP_PORT)
 
