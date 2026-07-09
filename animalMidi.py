@@ -23,6 +23,8 @@ Requiere:
   - mido (pip)
 
 Configurar con:  sudo ./setup.sh
+
+TODO: borrar este commit de prueba
 """
 
 import asyncio
