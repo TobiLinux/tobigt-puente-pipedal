@@ -51,7 +51,7 @@ PIPEDAL_WS = os.environ.get("TOBIGT_PIPEDAL_WS", "ws://127.0.0.1:80/pipedal")
 
 PIPEDAL_MIDI = os.environ.get("TOBIGT_PIPEDAL_MIDI", "PiPedal:in")
 
-MIDI_BACKEND = os.environ.get("TOBIGT_MIDI_BACKEND", "mido.backends.rtmidi/ALSA")
+MIDI_BACKEND = os.environ.get("TOBIGT_MIDI_BACKEND", "mido.backends.rtmidi/LINUX_ALSA")
 
 
 # =============================================================================
