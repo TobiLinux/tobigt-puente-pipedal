@@ -19,7 +19,10 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
         echo ""
     fi
 else
-    echo "No es un repositorio git — copia los archivos manualmente o pon el proyecto bajo git"
+    echo "No es un repositorio git — usa ./deploy.sh desde tu máquina de desarrollo:"
+    echo "  ./deploy.sh"
+    echo ""
+    echo "  O configurá remote y cloná en la RPi:  git clone ..."
     echo ""
 fi
 
