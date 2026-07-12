@@ -64,6 +64,7 @@ class AppState:
         self.last_pedalboard = {}
         self.next_reply_id = 1
         self.last_esp_addr = None
+        self.ws_request_queue = None
 
 
 # =============================================================================
@@ -215,11 +216,11 @@ def handle_snapshot(index, transport, state):
 
 async def ws_loop(udp_transport, state, stop_event):
     """
-    Bucle principal de WebSocket. Se conecta a PiPedal, envía una
-    petición inicial (getBankIndex) y luego procesa eventos push.
+    Bucle principal de WebSocket. Mantiene conexión con PiPedal,
+    procesa eventos push y también drena peticiones de la cola
+    (puestas por udp_controller tras cada comando MIDI exitoso).
 
     Reconexión automática con espera de 3 segundos si se cae.
-    Solo reacciona a los tres eventos de la whitelist; el resto se ignora.
     """
     while not stop_event.is_set():
         try:
@@ -230,9 +231,22 @@ async def ws_loop(udp_transport, state, stop_event):
                 state.next_reply_id += 1
                 await ws.send(json.dumps([{"message": "getBankIndex", "replyTo": req_id}]))
 
-                async for raw in ws:
-                    if stop_event.is_set():
-                        break
+                while not stop_event.is_set():
+                    # Drenar peticiones encoladas por udp_controller
+                    while state.ws_request_queue is not None and not state.ws_request_queue.empty():
+                        req = state.ws_request_queue.get_nowait()
+                        req_id = state.next_reply_id
+                        state.next_reply_id += 1
+                        req["replyTo"] = req_id
+                        await ws.send(json.dumps([req]))
+                        logging.info("WS >> %s", json.dumps(req))
+
+                    # Esperar mensaje con timeout para no bloquear la cola
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), timeout=0.5)
+                    except asyncio.TimeoutError:
+                        continue
+
                     try:
                         data = json.loads(raw)
 
@@ -247,7 +261,7 @@ async def ws_loop(udp_transport, state, stop_event):
                         if msg == "onBanksChanged" or (msg == "getBankIndex" and is_reply):
                             handle_banks(body, udp_transport, state)
 
-                        elif msg == "onPresetsChanged":
+                        elif msg == "onPresetsChanged" or (msg == "getPresets" and is_reply):
                             handle_presets(body, udp_transport, state)
 
                         elif msg == "onPedalboardChanged":
@@ -280,6 +294,10 @@ async def udp_controller(queue, midi_port, udp_transport, state):
     Lee mensajes de la cola UDP (puesta por UDPProtocol) y los traduce
     a MIDI hacia PiPedal. La respuesta se envía de vuelta a la ESP
     usando la misma dirección desde la que llegó el mensaje original.
+
+    Después de cada comando que modifica el estado (todo menos `kl`),
+    encola una petición a PiPedal para obtener el estado actual y
+    reflejarlo en la ESP.
     """
     while True:
         msg, addr = await queue.get()
@@ -287,6 +305,8 @@ async def udp_controller(queue, midi_port, udp_transport, state):
         reply = midi_to_GT(msg, midi_port, state)
         if reply:
             udp_transport.sendto(reply.encode("utf-8"), addr)
+            if msg != "kl" and state.ws_request_queue is not None:
+                state.ws_request_queue.put_nowait({"message": "getPresets"})
 
 
 # =============================================================================
@@ -340,6 +360,7 @@ async def main():
     logging.info("=== TobiGT / PiPedal bridge ===")
 
     state = AppState()
+    state.ws_request_queue = asyncio.Queue()
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
 
