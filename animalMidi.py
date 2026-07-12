@@ -254,6 +254,8 @@ async def ws_loop(udp_transport, state, stop_event):
                             continue
 
                         header = data[0]
+                        if not isinstance(header, dict):
+                            continue
                         body = data[1] if len(data) > 1 else None
                         msg = header.get("message", "")
                         is_reply = "reply" in header
@@ -261,10 +263,10 @@ async def ws_loop(udp_transport, state, stop_event):
                         if msg == "onBanksChanged" or (msg == "getBankIndex" and is_reply):
                             handle_banks(body, udp_transport, state)
 
-                        elif msg == "onPresetsChanged" or (msg == "getPresets" and is_reply):
+                        elif msg == "onPresetsChanged":
                             handle_presets(body, udp_transport, state)
 
-                        elif msg == "onPedalboardChanged":
+                        elif msg == "onPedalboardChanged" or (msg == "getPedalboard" and is_reply):
                             handle_pedalboard(body, udp_transport, state)
 
                         elif msg == "onSelectedSnapshotChanged":
@@ -306,7 +308,7 @@ async def udp_controller(queue, midi_port, udp_transport, state):
         if reply:
             udp_transport.sendto(reply.encode("utf-8"), addr)
             if msg != "kl" and state.ws_request_queue is not None:
-                state.ws_request_queue.put_nowait({"message": "getPresets"})
+                state.ws_request_queue.put_nowait({"message": "getPedalboard"})
 
 
 # =============================================================================
