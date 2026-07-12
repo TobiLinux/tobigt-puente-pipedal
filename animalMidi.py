@@ -308,7 +308,7 @@ async def udp_controller(queue, midi_port, udp_transport, state):
         if reply:
             udp_transport.sendto(reply.encode("utf-8"), addr)
             if msg != "kl" and state.ws_request_queue is not None:
-                state.ws_request_queue.put_nowait({"message": "getPedalboard"})
+                state.ws_request_queue.put_nowait({"message": "getBankIndex"})
 
 
 # =============================================================================
