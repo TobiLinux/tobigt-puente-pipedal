@@ -22,7 +22,7 @@ Requiere:
   - python3-websockets (desde apt)
   - mido (pip)
 
-Configurar con:  sudo ./setup.sh
+Configurar con:  ./setup.sh
 
 TODO: borrar este commit de prueba
 """
@@ -108,6 +108,7 @@ def udp_send(transport, msg, state):
     Lo usan los callbacks del WebSocket para reflejar el estado de PiPedal.
     """
     addr = state.last_esp_addr or ESP_ADDR
+    logging.info("UDP >> %s -> %s:%s", msg, addr[0], addr[1])
     transport.sendto(msg.encode("utf-8"), addr)
 
 
@@ -255,6 +256,9 @@ async def ws_loop(udp_transport, state, stop_event):
                         elif msg == "onSelectedSnapshotChanged":
                             handle_snapshot(body, udp_transport, state)
 
+                        else:
+                            logging.info("WS desconocido: msg=%s body=%s", msg, json.dumps(body))
+
                     except json.JSONDecodeError:
                         continue
 
@@ -279,7 +283,7 @@ async def udp_controller(queue, midi_port, udp_transport, state):
     """
     while True:
         msg, addr = await queue.get()
-        logging.debug(f"UDP << {msg}")
+        logging.info(f"UDP << {msg}")
         reply = midi_to_GT(msg, midi_port, state)
         if reply:
             udp_transport.sendto(reply.encode("utf-8"), addr)
