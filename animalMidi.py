@@ -148,14 +148,6 @@ def midi_to_GT(msg, port, state):
 # =============================================================================
 
 def handle_banks(body, transport, state):
-    """
-    Procesa el evento onBanksChanged de PiPedal.
-    El body trae:
-      { "selectedBank": <instanceId>, "entries": [{ "instanceId": ..., "name": "..." }, ...] }
-
-    Busca el entry cuyo instanceId coincida con selectedBank y envía
-    "b:<nombre>" a la ESP.
-    """
     if not isinstance(body, dict) or "selectedBank" not in body:
         return
     selected = body["selectedBank"]
@@ -163,37 +155,51 @@ def handle_banks(body, transport, state):
         if entry.get("instanceId") == selected:
             name = entry.get("name", "")
             if name:
+                logging.info("Bank: %s", name)
+                udp_send(transport, f"b:{name}", state)
+            return
+
+
+def handle_presets(body, transport, state):
+    """
+    Procesa el evento onPresetsChanged (reemplazo de onBanksChanged
+    en versiones recientes de PiPedal).
+
+    El body trae:
+      { "clientId": ..., "presets": {
+          "selectedInstanceId": <id>,
+          "presets": [{ "instanceId": ..., "name": "...", ... }, ...]
+        }
+      }
+    """
+    if not isinstance(body, dict) or "presets" not in body:
+        return
+    pd = body["presets"]
+    sid = pd.get("selectedInstanceId")
+    for entry in pd.get("presets", []):
+        if entry.get("instanceId") == sid:
+            name = entry.get("name", "")
+            if name:
+                logging.info("Preset (from presets list): %s", name)
                 udp_send(transport, f"b:{name}", state)
             return
 
 
 def handle_pedalboard(body, transport, state):
-    """
-    Procesa el evento onPedalboardChanged de PiPedal.
-    El body trae:
-      { "clientId": ..., "pedalboard": { "name": "...", "snapshots": [...], ... } }
-
-    Extrae el nombre del preset/pedalboard y envía "p:<nombre>" a la ESP.
-    Además cachea el array de snapshots para poder resolver nombres
-    cuando llegue onSelectedSnapshotChanged (que solo da un índice).
-    """
     if not isinstance(body, dict) or "pedalboard" not in body:
         return
     pb = body["pedalboard"]
     name = pb.get("name", "")
     state.last_pedalboard["snapshots"] = pb.get("snapshots", [])
     if name:
+        logging.info("Pedalboard: %s", name)
         udp_send(transport, f"p:{name}", state)
+    sel_idx = pb.get("selectedSnapshot")
+    if isinstance(sel_idx, int):
+        handle_snapshot(sel_idx, transport, state)
 
 
 def handle_snapshot(index, transport, state):
-    """
-    Procesa el evento onSelectedSnapshotChanged de PiPedal.
-    El body es un entero: el índice del snapshot seleccionado, o -1 si ninguno.
-
-    Traduce el índice a nombre usando la lista cacheada de snapshots
-    del último onPedalboardChanged, y envía "s:<nombre>" a la ESP.
-    """
     if not isinstance(index, int) or index < 0:
         return
     snapshots = state.last_pedalboard.get("snapshots", [])
@@ -202,6 +208,7 @@ def handle_snapshot(index, transport, state):
         if isinstance(snap, dict):
             name = snap.get("name", "")
             if name:
+                logging.info("Snapshot: %s", name)
                 udp_send(transport, f"s:{name}", state)
 
 
@@ -238,6 +245,9 @@ async def ws_loop(udp_transport, state, stop_event):
 
                         if msg == "onBanksChanged" or (msg == "getBankIndex" and is_reply):
                             handle_banks(body, udp_transport, state)
+
+                        elif msg == "onPresetsChanged":
+                            handle_presets(body, udp_transport, state)
 
                         elif msg == "onPedalboardChanged":
                             handle_pedalboard(body, udp_transport, state)
