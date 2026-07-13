@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import signal
+import subprocess
 import mido
 import websockets
 
@@ -188,9 +189,9 @@ def handle_presets(body, transport, state):
 
 
 def handle_pedalboard(body, transport, state):
-    if not isinstance(body, dict) or "pedalboard" not in body:
+    if not isinstance(body, dict):
         return
-    pb = body["pedalboard"]
+    pb = body.get("pedalboard", body)
     name = pb.get("name", "")
     state.last_pedalboard["snapshots"] = pb.get("snapshots", [])
     if name:
@@ -227,9 +228,24 @@ async def ws_loop(udp_transport, state, stop_event):
             async with websockets.connect(PIPEDAL_WS, ping_interval=None) as ws:
                 logging.info("WebSocket conectado a PiPedal")
 
+                await ws.send(json.dumps([{"message": "hello"}]))
+                logging.info("WS >> hello")
+                try:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
+                    data = json.loads(raw)
+                    if isinstance(data, list) and len(data) > 0:
+                        hdr = data[0]
+                        if isinstance(hdr, dict) and hdr.get("message") == "ehlo":
+                            logging.info("WS << ehlo clientId=%s", data[1] if len(data) > 1 else "?")
+                except (asyncio.TimeoutError, json.JSONDecodeError, IndexError):
+                    logging.warning("WS no recibió ehlo (procediendo de todas formas)")
+
                 req_id = state.next_reply_id
                 state.next_reply_id += 1
                 await ws.send(json.dumps([{"message": "getBankIndex", "replyTo": req_id}]))
+                req_id = state.next_reply_id
+                state.next_reply_id += 1
+                await ws.send(json.dumps([{"message": "currentPedalboard", "replyTo": req_id}]))
 
                 while not stop_event.is_set():
                     # Drenar peticiones encoladas por udp_controller
@@ -266,7 +282,7 @@ async def ws_loop(udp_transport, state, stop_event):
                         elif msg == "onPresetsChanged":
                             handle_presets(body, udp_transport, state)
 
-                        elif msg == "onPedalboardChanged" or (msg == "getPedalboard" and is_reply):
+                        elif msg == "onPedalboardChanged" or (msg == "currentPedalboard" and is_reply):
                             handle_pedalboard(body, udp_transport, state)
 
                         elif msg == "onSelectedSnapshotChanged":
@@ -309,6 +325,7 @@ async def udp_controller(queue, midi_port, udp_transport, state):
             udp_transport.sendto(reply.encode("utf-8"), addr)
             if msg != "kl" and state.ws_request_queue is not None:
                 state.ws_request_queue.put_nowait({"message": "getBankIndex"})
+                state.ws_request_queue.put_nowait({"message": "currentPedalboard"})
 
 
 # =============================================================================
@@ -332,6 +349,15 @@ async def connect_midi():
                 if "PiPedal" in name and "in" in name:
                     port = mido.open_output(name, client_name="TobiGT")
                     logging.info(f"MIDI conectado a {name}")
+                    try:
+                        subprocess.run(
+                            ["aconnect", "TobiGT:0", "PiPedal:in"],
+                            check=True, capture_output=True, timeout=5,
+                        )
+                        logging.info("MIDI: conexión ALSA establecida")
+                    except Exception as e:
+                        logging.warning(f"MIDI: aconnect falló ({e}) — "
+                                        "puede que la conexión ya exista")
                     return port
         except Exception:
             pass
