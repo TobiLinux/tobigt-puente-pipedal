@@ -159,7 +159,7 @@ def handle_banks(body, transport, state):
             name = entry.get("name", "")
             if name:
                 logging.info("Bank: %s", name)
-                udp_send(transport, f"b:{name}", state)
+                udp_send(transport, f"k:{name}", state)
             return
 
 
