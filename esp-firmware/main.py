@@ -53,6 +53,8 @@ contador_klive = time.ticks_ms()
 ultimo_texto = ['----', '----']
 opciones_prog = ["ShUt", "rEbt", "Hot", "SLP", "ESC"]
 opcion_actual = 0
+last_irq_ms = 0
+DEBOUNCE_MS = 200
 
 _TM1637_REPLACE = {
     '(': ' ', ')': ' ', '[': ' ', ']': ' ',
@@ -70,9 +72,12 @@ def sanitize_tm1637(s):
     return ''.join(_TM1637_REPLACE.get(c, c) for c in s)
 
 def btn_press(pin):
-  global inter
+  global inter, last_irq_ms, pin_i
+  now = time.ticks_ms()
+  if time.ticks_diff(now, last_irq_ms) < DEBOUNCE_MS:
+    return
+  last_irq_ms = now
   inter = True
-  global pin_i
   pin_i = pin
 
 BANCO.irq(trigger=Pin.IRQ_FALLING, handler=btn_press)
@@ -215,32 +220,39 @@ def poll_async_udp():
 def prog_siguiente():
   global opcion_actual
   opcion_actual = (opcion_actual + 1) % len(opciones_prog)
+  print('prog: FD -> opcion', opcion_actual, opciones_prog[opcion_actual])
   tmA.show(opciones_prog[opcion_actual])
 
 def prog_anterior():
   global opcion_actual
   opcion_actual = (opcion_actual - 1) % len(opciones_prog)
+  print('prog: FI -> opcion', opcion_actual, opciones_prog[opcion_actual])
   tmA.show(opciones_prog[opcion_actual])
 
 def prog_executar(accion):
   global modo, inter
   inter = False
+  print('prog: BANCO confirma', accion)
   if accion == "ESC":
+    print('prog: ESC -> salir')
     modo = 'normal'
     cargar_tms()
     return
   for i in range(5, 0, -1):
     tmA.show(accion)
     tmB.show(" " + str(i))
+    print('countdown:', i)
     for _ in range(10):
       time.sleep_ms(100)
       if inter or not PROG.value():
+        print('countdown CANCELADO por interrupcion')
         modo = 'normal'
         inter = False
         cargar_tms()
         return
   modo = 'normal'
   limpiartms()
+  print('ejecutando:', accion)
   if accion == "SLP":
     machine.deepsleep()
   elif accion == "ShUt":
@@ -252,9 +264,11 @@ def prog_executar(accion):
 
 def F_banco():
   if modo=='normal':
+    print('normal: BANCO -> next bank')
     control_UDP(enviarudp("note_on channel=0 note=72"))
     time.sleep(0.1)
   elif modo=='prog':
+    print('prog: BANCO -> confirmar')
     prog_executar(opciones_prog[opcion_actual])
     time.sleep(0.1)
 
@@ -278,6 +292,7 @@ def F_boost():
     control_UDP(enviarudp('boost'))
     time.sleep(0.1)
   elif modo=='prog':
+    print('prog: BOOST -> salir')
     modo = 'normal'
     cargar_tms()
     time.sleep(0.1)
@@ -299,12 +314,14 @@ def boton_PROG():
   t = time.ticks_ms()
   while not PROG.value():
     if time.ticks_diff(time.ticks_ms(), t) > swtime:
+      print('entrando a modo PROG')
       modo = 'prog'
       opcion_actual = 0
       limpiartms()
       tmA.show('prog')
       time.sleep(2)
       tmA.show(opciones_prog[opcion_actual])
+      print('prog: opcion inicial', opcion_actual, opciones_prog[opcion_actual])
       return
 
 bienvenida()
@@ -321,7 +338,7 @@ while True:
   keepAlive()
   poll_async_udp()
   if inter:
-    print('Se ha disparado la interrupcion en: ', pin_i)
+    print('IRQ: pin=%s modo=%s' % (pin_i, modo))
     boton(pin_i)
     inter = False
   time.sleep_ms(50)
