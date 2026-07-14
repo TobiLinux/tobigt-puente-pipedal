@@ -273,6 +273,7 @@ def F_izq():
     prog_anterior()
 
 def F_boost():
+  global modo
   if modo=='normal':
     control_UDP(enviarudp('boost'))
     time.sleep(0.1)
