@@ -93,6 +93,9 @@ docs](https://rerdavies.github.io/pipedal/midi.html) para más detalles):
 | FI (izq) | 71 | Previous Preset |
 | BANCO | 72 | Next Bank |
 | BOOST | 60 (toggle) | Boost on/off |
+| PROG (corto) | 76 | Next Snapshot |
+
+**Display:** tmA = preset, tmB = snapshot
 
 ### Menú PROG
 
@@ -123,6 +126,7 @@ Resumen de los bindings que deben configurarse en PiPedal
 | 73   | System    | Shutdown         | PROG → ShUt         |
 | 74   | System    | Reboot           | PROG → rEbt         |
 | 75   | System    | Toggle Hotspot   | PROG → Hot          |
+| 76   | System    | Next Snapshot    | PROG (corto)        |
 
 ## Estructura del repositorio
 

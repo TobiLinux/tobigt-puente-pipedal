@@ -54,6 +54,7 @@ ultimo_texto = ['----', '----']
 opciones_prog = ["ShUt", "rEbt", "Hot", "SLP", "ESC"]
 opcion_actual = 0
 last_irq_ms = 0
+last_prog_ms = 0
 DEBOUNCE_MS = 200
 
 _TM1637_REPLACE = {
@@ -178,19 +179,17 @@ def control_UDP(responses):
       result = "ok"
       server_updated = True
     elif res[0:2] == 'k:':
-      name = sanitize_tm1637(res[2:])
-      if modo == 'normal':
-        tmA.scroll(name, 60)
-        time.sleep_ms(200)
-      ultimo_texto[0] = name
-      if modo == 'normal': cargar_tms()
+      # Bank changed — no display change (tmA = preset, tmB = snapshot)
       server_updated = True
     elif res[0:2] == 'b:' or res[0:2] == 'p:':
       name = sanitize_tm1637(res[2:])
-      ultimo_texto[1] = name
+      ultimo_texto[0] = name
       if modo == 'normal': cargar_tms()
       server_updated = True
     elif res[0:2] == 's:':
+      name = sanitize_tm1637(res[2:])
+      ultimo_texto[1] = name
+      if modo == 'normal': cargar_tms()
       server_updated = True
     else:
       try:
@@ -311,21 +310,30 @@ def boton(i):
   return func()
 
 def boton_PROG():
-  global modo, opcion_actual
+  global modo, opcion_actual, last_prog_ms
   if modo == 'prog':
     return
-  t = time.ticks_ms()
-  while not PROG.value():
-    if time.ticks_diff(time.ticks_ms(), t) > swtime:
-      print('entrando a modo PROG')
-      modo = 'prog'
-      opcion_actual = 0
-      limpiartms()
-      tmA.show('prog')
-      time.sleep(2)
-      tmA.show(opciones_prog[opcion_actual])
-      print('prog: opcion inicial', opcion_actual, opciones_prog[opcion_actual])
+  if not PROG.value():
+    t = time.ticks_ms()
+    if time.ticks_diff(t, last_prog_ms) < DEBOUNCE_MS:
       return
+    while not PROG.value():
+      if time.ticks_diff(time.ticks_ms(), t) > swtime:
+        print('entrando a modo PROG')
+        modo = 'prog'
+        opcion_actual = 0
+        limpiartms()
+        tmA.show('prog')
+        time.sleep(2)
+        tmA.show(opciones_prog[opcion_actual])
+        print('prog: opcion inicial', opcion_actual, opciones_prog[opcion_actual])
+        return
+      time.sleep_ms(5)
+    time.sleep_ms(DEBOUNCE_MS)
+    if PROG.value():
+      last_prog_ms = t
+      print('PROG short press -> next snapshot')
+      control_UDP(enviarudp("note_on channel=0 note=76"))
 
 bienvenida()
 seleccion_RED()

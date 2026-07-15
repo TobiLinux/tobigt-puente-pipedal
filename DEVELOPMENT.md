@@ -17,18 +17,24 @@ Three async layers in `animalMidi.py`:
 2. **MIDI → PiPedal** — forwards parsed commands as MIDI via ALSA sequencer
 3. **WebSocket ← PiPedal** (`ws://127.0.0.1:80/pipedal`) — events forwarded to ESP:
    - `onBanksChanged` / `getBankIndex` reply → `k:<bank_name>` → **tmA** (con scroll)
-   - `onPresetsChanged` → `b:<preset_name>` → **tmB** (directo)
-   - `onPedalboardChanged` / `currentPedalboard` reply → `p:<pedalboard.name>` → **tmB** (directo)
-   - `onSelectedSnapshotChanged` → `s:<snapshot_name>` (ignorado)
+   - `onPresetsChanged` → `b:<preset_name>` → **tmA** (directo)
+   - `onPedalboardChanged` / `currentPedalboard` reply → `p:<pedalboard.name>` → **tmA** (directo)
+   - `onSelectedSnapshotChanged` → `s:<snapshot_name>` → **tmB** (directo)
    - Wire format: `[{"message": "<event>"}, <body>]`
 
-UDP replies: `boost+`, `boost-`, `klok`, `ok`, `-1`, `k:<name>`, `b:<name>`, `p:<name>`.
+UDP replies: `boost+`, `boost-`, `klok`, `ok`, `-1`, `k:<name>`, `b:<name>`, `p:<name>`, `s:<name>`.
 
 **ESP stateless** — todo el estado vive en PiPedal. La ESP solo manda notas fijas:
 - `note=70` → Next Preset (binding de sistema)
 - `note=71` → Previous Preset (binding de sistema)
 - `note=72` → Next Bank (binding de sistema)
+- `note=76` → Next Snapshot (PROG short press)
 - `boost` → toggle MIDI note 60
+
+**Display mapping:**
+- **tmA** = preset (`b:`/`p:`)
+- **tmB** = snapshot (`s:`)
+- `k:` (bank) no se muestra en pantalla
 
 **Firmware ESP:** `esp-firmware/main.py` incluido en este repo.
 
