@@ -139,7 +139,7 @@ tobigt-puente-pipedal/
 ├── deploy.sh               # Despliegue local (no trackeado en git)
 ├── animalmidi.service      # Systemd unit
 ├── requirements.txt        # Dependencias Python
-├── AGENTS.md               # Documentación técnica detallada
+├── DEVELOPMENT.md          # Documentación técnica detallada
 └── README.md               # Este archivo
 ```
 
@@ -180,3 +180,10 @@ Sin garantías. La licencia podría no dar todos los permisos necesarios para el
 uso previsto (ej. derechos de publicidad, privacidad o morales). Ver el
 [texto legal completo](https://creativecommons.org/licenses/by-sa/4.0/legalcode.es)
 para más detalles.
+
+## Créditos
+
+Partes de la reimplementación actual de TobiGT fueron asistidas por
+[OpenCode](https://opencode.ai) y el modelo DeepSeek V4.
+
+© 2025 Sebastián Tobías Castro
