@@ -148,7 +148,8 @@ tobigt-puente-pipedal/
 - [ ] Archivo de configuración para MIDI bindings (mapeo notas → acciones,
       independiente de la UI de PiPedal)
 - [ ] Esquemático del hardware (conexiones ESP → TM1637 → botones)
-- [ ] `ftp.py` (opcional, para modo FTP boot legacy)
+- [ ] Reemplazar FTP boot por OTA (microPythonOTA o similar) para actualizar
+      firmware sin cable
 
 ## Licencia
 
