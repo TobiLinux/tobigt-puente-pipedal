@@ -94,7 +94,7 @@ The bridge sends `k:`/`b:`/`p:`/`s:` asynchronously from WebSocket events. The E
 cd tobigt-puente-pipedal && ./setup.sh
 ```
 
-**IMPORTANT:** Run as user `tobi`, NOT with `sudo`. The script uses `sudo` internally where needed (apt, systemd). Running the whole script with `sudo` changes `$HOME` to `/root`, creating the venv at `/root/.animalmidi-pipedal/` and making the systemd service run as root — which **breaks the ALSA sequencer connection** to PiPedal.
+**IMPORTANT:** Run as your normal user, NOT with `sudo`. The script uses `sudo` internally where needed (apt, systemd). Running the whole script with `sudo` changes `$HOME` to `/root`, creating the venv at `/root/.animalmidi-pipedal/` and making the systemd service run as root — which **breaks the ALSA sequencer connection** to PiPedal.
 
 - Creates venv `~/.animalmidi-pipedal/` with `--system-site-packages` (apt packages: `python3-rtmidi`, `python3-websockets`; pip: `mido`)
 - Installs systemd service `animalmidi.service` (`After=pipedald.service`)

@@ -1,0 +1,166 @@
+# TobiGT — MIDI ↔ UDP bridge for PiPedal
+
+Bridge que recibe comandos UDP desde un ESP pedalboard, los traduce a MIDI
+para controlar **PiPedal** (guitar amp sim en Raspberry Pi), y reenvía eventos
+WebSocket de PiPedal al ESP en tiempo real.
+
+```
+┌─────────┐  UDP   ┌──────────┐  MIDI   ┌──────────┐
+│  ESP    │───────→│  bridge  │───────→│  PiPedal │
+│ 8266/32 │←───────│ (Python) │←───────│ (RPi)    │
+└─────────┘  UDP   └──────────┘  WS     └──────────┘
+   (stateless)       async              amp sim
+```
+
+## Requisitos
+
+- Raspberry Pi con [PiPedal](https://rerdavies.github.io/pipedal/) instalado y
+  MIDI IN habilitado
+- ESP8266 o ESP32 con 2 displays TM1637 y 5 botones (FD, FI, BANCO, BOOST, PROG)
+- Red WiFi (hotspot o LAN)
+
+## Instalación
+
+### 1. Bridge en la Raspberry Pi
+
+```bash
+git clone <url-del-repo>
+cd tobigt-puente-pipedal
+bash setup.sh
+```
+
+Ejecutar **como usuario normal** (no con `sudo`). El script usa `sudo`
+internamente donde hace falta (apt, systemd), pero si se corre todo con `sudo`
+el venv se crea en `/root/` y el servicio falla al conectar el secuenciador
+ALSA con PiPedal.
+
+El script:
+- Crea un venv en `~/.animalmidi-pipedal/` con `--system-site-packages`
+- Instala dependencias (`mido`, `python3-rtmidi`, `python3-websockets`)
+- Instala y habilita el servicio systemd `animalmidi.service`
+  (`After=pipedald.service`)
+- Crea el archivo de configuración `/etc/animalmidi/env` (todas las variables
+  son opcionales, ver defaults en `animalMidi.py:43-54`)
+
+Comandos de servicio:
+```bash
+systemctl start animalmidi
+systemctl stop animalmidi
+systemctl status animalmidi
+systemctl restart animalmidi
+```
+
+### 2. Firmware ESP
+
+Copiar `esp-firmware/main.py` al ESP (Thonny, ampy, mip, o FTP).
+Configurar `credenciales.py` con la IP de la Raspberry Pi y el SSID/PSK de
+la red WiFi.
+
+### 3. MIDI Bindings en PiPedal
+
+Desde la UI web de PiPedal, ir a Settings → MIDI Bindings → System y agregar
+los siguientes bindings (ver [PiPedal MIDI
+docs](https://rerdavies.github.io/pipedal/midi.html) para más detalles):
+
+| Nota | Tipo   | Acción           |
+|------|--------|------------------|
+| 60   | System | Toggle Boost     |
+| 70   | System | Next Preset      |
+| 71   | System | Previous Preset  |
+| 72   | System | Next Bank        |
+| 73   | System | Shutdown         |
+| 74   | System | Reboot           |
+| 75   | System | Toggle Hotspot   |
+
+## Uso
+
+### Modo normal
+
+| Botón | Nota | Acción PiPedal |
+|-------|------|----------------|
+| FD (der) | 70 | Next Preset |
+| FI (izq) | 71 | Previous Preset |
+| BANCO | 72 | Next Bank |
+| BOOST | 60 (toggle) | Boost on/off |
+
+### Menú PROG
+
+Long-press PROG → menú navegable con **FD/FI**, confirmar con **BANCO**,
+cancelar con **BOOST** o cualquier botón.
+
+| Opción | tmA | Acción |
+|--------|-----|--------|
+| Shutdown | `ShUt` | note=73 → PiPedal: System Shutdown |
+| Reboot | `rEbt` | note=74 → PiPedal: System Reboot |
+| Hotspot | `Hot` | note=75 → PiPedal: Toggle Hotspot |
+| Deep sleep | `SLP` | `machine.deepsleep()` (local ESP) |
+| Salir | `ESC` | Sale sin acción |
+
+Al confirmar (excepto ESC): countdown **5→0** en tmB. Cualquier botón cancela.
+
+## MIDI Bindings
+
+Resumen de los bindings que deben configurarse en PiPedal
+([docs](https://rerdavies.github.io/pipedal/midi.html)):
+
+| Nota | Tipo      | Acción           | Uso                 |
+|------|-----------|------------------|---------------------|
+| 60   | System    | Toggle Boost     | BOOST button        |
+| 70   | System    | Next Preset      | FD (modo normal)    |
+| 71   | System    | Previous Preset  | FI (modo normal)    |
+| 72   | System    | Next Bank        | BANCO (modo normal) |
+| 73   | System    | Shutdown         | PROG → ShUt         |
+| 74   | System    | Reboot           | PROG → rEbt         |
+| 75   | System    | Toggle Hotspot   | PROG → Hot          |
+
+## Estructura del repositorio
+
+```
+tobigt-puente-pipedal/
+├── animalMidi.py           # Bridge Python (UDP → MIDI → WebSocket)
+├── esp-firmware/
+│   └── main.py             # Firmware ESP8266/ESP32
+├── setup.sh                # Script de instalación del bridge
+├── update.sh               # Script de actualización
+├── deploy.sh               # Despliegue local (no trackeado en git)
+├── animalmidi.service      # Systemd unit
+├── requirements.txt        # Dependencias Python
+├── AGENTS.md               # Documentación técnica detallada
+└── README.md               # Este archivo
+```
+
+## TODO
+
+- [ ] Archivo de configuración para MIDI bindings (mapeo notas → acciones,
+      independiente de la UI de PiPedal)
+- [ ] Esquemático del hardware (conexiones ESP → TM1637 → botones)
+
+## Licencia
+
+**CC BY-SA 4.0 — Creative Commons Atribución-CompartirIgual 4.0 Internacional**
+
+© 2025 Sebastián Tobías Castro
+
+Esta obra está bajo licencia
+[Creative Commons Atribución-CompartirIgual 4.0 Internacional]
+(https://creativecommons.org/licenses/by-sa/4.0/).
+
+Usted es libre de:
+- **Compartir** — copiar y redistribuir el material en cualquier medio o formato
+- **Adaptar** — remezclar, transformar y construir a partir del material
+
+Bajo los siguientes términos:
+- **Atribución** — debe dar crédito adecuado, proporcionar un enlace a la
+  licencia e indicar si se realizaron cambios
+- **CompartirIgual** — si remezcla, transforma o crea a partir del material,
+  debe distribuir sus contribuciones bajo la misma licencia
+
+| Enlace | URL |
+|--------|-----|
+| Resumen en español | https://creativecommons.org/licenses/by-sa/4.0/deed.es |
+| Texto legal completo | https://creativecommons.org/licenses/by-sa/4.0/legalcode.es |
+
+Sin garantías. La licencia podría no dar todos los permisos necesarios para el
+uso previsto (ej. derechos de publicidad, privacidad o morales). Ver el
+[texto legal completo](https://creativecommons.org/licenses/by-sa/4.0/legalcode.es)
+para más detalles.
