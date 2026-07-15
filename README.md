@@ -183,7 +183,7 @@ para más detalles.
 
 ## Créditos
 
-Partes de la reimplementación actual de TobiGT fueron asistidas por
+Parte de la reimplementación actual de TobiGT fue asistida por
 [OpenCode](https://opencode.ai) y el modelo DeepSeek V4.
 
 © 2025 Sebastián Tobías Castro
