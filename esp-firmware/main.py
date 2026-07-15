@@ -156,46 +156,49 @@ def control_UDP(responses):
   server_updated = False
   for res in responses:
     if res == "err1":
-      cargar_tms(['err-', 'sock'])
+      if modo == 'normal': cargar_tms(['err-', 'sock'])
       result = 'err1'
     elif res == "err2":
-      cargar_tms(['serv', 'mal-'])
+      if modo == 'normal': cargar_tms(['serv', 'mal-'])
       result = 'err2'
     elif res == "klok":
-      tmA.show('live', True)
-      tmB.show('--ok', True)
-      time.sleep(0.1)
-      limpiartms()
+      if modo == 'normal':
+        tmA.show('live', True)
+        tmB.show('--ok', True)
+        time.sleep(0.1)
+        limpiartms()
     elif res[0:5] == 'boost':
       result = res
-      if res == 'boost+':
-        cargar_tms(['b**t', '--on'])
-      else:
-        cargar_tms()
+      if modo == 'normal':
+        if res == 'boost+':
+          cargar_tms(['b**t', '--on'])
+        else:
+          cargar_tms()
     elif res == "ok":
       result = "ok"
       server_updated = True
     elif res[0:2] == 'k:':
       name = sanitize_tm1637(res[2:])
-      tmA.scroll(name, 60)
-      time.sleep_ms(200)
+      if modo == 'normal':
+        tmA.scroll(name, 60)
+        time.sleep_ms(200)
       ultimo_texto[0] = name
-      cargar_tms()
+      if modo == 'normal': cargar_tms()
       server_updated = True
     elif res[0:2] == 'b:' or res[0:2] == 'p:':
       name = sanitize_tm1637(res[2:])
       ultimo_texto[1] = name
-      cargar_tms()
+      if modo == 'normal': cargar_tms()
       server_updated = True
     elif res[0:2] == 's:':
       server_updated = True
     else:
       try:
-        cargar_tms(['err-','err-'])
+        if modo == 'normal': cargar_tms(['err-','err-'])
         result = '-1'
       except Exception as e:
         print('error:   ', e)
-        cargar_tms(['err-','err-'])
+        if modo == 'normal': cargar_tms(['err-','err-'])
         time.sleep(0.5)
         result = '-1'
   return result
