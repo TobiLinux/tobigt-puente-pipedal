@@ -16,8 +16,9 @@ WebSocket de PiPedal al ESP en tiempo real.
 
 - Raspberry Pi con [PiPedal](https://rerdavies.github.io/pipedal/) instalado y
   MIDI IN habilitado
-- ESP8266 o ESP32 con 2 displays TM1637 y 5 botones (FD, FI, BANCO, BOOST, PROG)
-- Red WiFi (hotspot o LAN)
+- **ESP8266** (hardware actual: Wemos D1 mini) con 2 displays TM1637 y 5 botones
+  (FD, FI, BANCO, BOOST, PROG)
+- Red WiFi (hotspot de la RPi o LAN doméstica)
 
 ## Instalación
 
@@ -52,9 +53,19 @@ systemctl restart animalmidi
 
 ### 2. Firmware ESP
 
-Copiar `esp-firmware/main.py` al ESP (Thonny, ampy, mip, o FTP).
-Configurar `credenciales.py` con la IP de la Raspberry Pi y el SSID/PSK de
-la red WiFi.
+Copiar todo el contenido de `esp-firmware/` al ESP (Thonny, ampy, mip, o FTP).
+
+```
+esp-firmware/
+├── main.py           # Programa principal
+├── tm1637.py         # Driver para displays TM1637
+├── conectar.py       # Conexión WiFi (configurar SSID/PSK domésticos)
+├── credenciales.py   # IP del server + puerto UDP
+└── config.json       # Config persistente (se crea solo en el ESP)
+```
+
+En `conectar.py` y `credenciales.py`, ajustar las IPs, SSID y PSK según tu
+red local y la IP de la Raspberry Pi.
 
 ### 3. MIDI Bindings en PiPedal
 
@@ -119,7 +130,10 @@ Resumen de los bindings que deben configurarse en PiPedal
 tobigt-puente-pipedal/
 ├── animalMidi.py           # Bridge Python (UDP → MIDI → WebSocket)
 ├── esp-firmware/
-│   └── main.py             # Firmware ESP8266/ESP32
+│   ├── main.py             # Firmware principal ESP8266
+│   ├── conectar.py         # Conexión WiFi (SSID/PSK a configurar)
+│   ├── credenciales.py     # IP del server + puerto UDP
+│   └── tm1637.py           # Driver displays TM1637
 ├── setup.sh                # Script de instalación del bridge
 ├── update.sh               # Script de actualización
 ├── deploy.sh               # Despliegue local (no trackeado en git)
@@ -134,6 +148,7 @@ tobigt-puente-pipedal/
 - [ ] Archivo de configuración para MIDI bindings (mapeo notas → acciones,
       independiente de la UI de PiPedal)
 - [ ] Esquemático del hardware (conexiones ESP → TM1637 → botones)
+- [ ] `ftp.py` (opcional, para modo FTP boot legacy)
 
 ## Licencia
 
