@@ -266,8 +266,8 @@ def prog_executar(accion):
 
 def F_banco():
   if modo=='normal':
-    print('normal: BANCO -> next bank')
-    control_UDP(enviarudp("note_on channel=0 note=72"))
+    print('normal: BANCO -> next preset')
+    control_UDP(enviarudp("note_on channel=0 note=70"))
     time.sleep(0.1)
   elif modo=='prog':
     print('prog: BANCO -> confirmar')
@@ -276,14 +276,16 @@ def F_banco():
 
 def F_der():
   if modo=='normal':
-    control_UDP(enviarudp("note_on channel=0 note=70"))
+    print('normal: FD -> next snapshot')
+    control_UDP(enviarudp("note_on channel=0 note=76"))
     time.sleep(0.1)
   elif modo=='prog':
     prog_siguiente()
 
 def F_izq():
   if modo=='normal':
-    control_UDP(enviarudp("note_on channel=0 note=71"))
+    print('normal: FI -> prev snapshot')
+    control_UDP(enviarudp("note_on channel=0 note=77"))
     time.sleep(0.1)
   elif modo=='prog':
     prog_anterior()
@@ -332,8 +334,8 @@ def boton_PROG():
     time.sleep_ms(DEBOUNCE_MS)
     if PROG.value():
       last_prog_ms = t
-      print('PROG short press -> next snapshot')
-      control_UDP(enviarudp("note_on channel=0 note=76"))
+      print('PROG short press -> next bank')
+      control_UDP(enviarudp("note_on channel=0 note=72"))
 
 bienvenida()
 seleccion_RED()

@@ -25,10 +25,10 @@ Three async layers in `animalMidi.py`:
 UDP replies: `boost+`, `boost-`, `klok`, `ok`, `-1`, `k:<name>`, `b:<name>`, `p:<name>`, `s:<name>`.
 
 **ESP stateless** — todo el estado vive en PiPedal. La ESP solo manda notas fijas:
-- `note=70` → Next Preset (binding de sistema)
-- `note=71` → Previous Preset (binding de sistema)
-- `note=72` → Next Bank (binding de sistema)
-- `note=76` → Next Snapshot (PROG short press)
+- `note=70` → Next Preset (BANCO button)
+- `note=72` → Next Bank (PROG short press)
+- `note=76` → Next Snapshot (FD button)
+- `note=77` → Previous Snapshot (FI button)
 - `boost` → toggle MIDI note 60
 
 **Display mapping:**

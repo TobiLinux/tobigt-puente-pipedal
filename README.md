@@ -89,11 +89,11 @@ docs](https://rerdavies.github.io/pipedal/midi.html) para más detalles):
 
 | Botón | Nota | Acción PiPedal |
 |-------|------|----------------|
-| FD (der) | 70 | Next Preset |
-| FI (izq) | 71 | Previous Preset |
-| BANCO | 72 | Next Bank |
+| FD (der) | 76 | Next Snapshot |
+| FI (izq) | 77 | Previous Snapshot |
+| BANCO | 70 | Next Preset |
 | BOOST | 60 (toggle) | Boost on/off |
-| PROG (corto) | 76 | Next Snapshot |
+| PROG (corto) | 72 | Next Bank |
 
 **Display:** tmA = preset, tmB = snapshot
 
@@ -120,13 +120,13 @@ Resumen de los bindings que deben configurarse en PiPedal
 | Nota | Tipo      | Acción           | Uso                 |
 |------|-----------|------------------|---------------------|
 | 60   | System    | Toggle Boost     | BOOST button        |
-| 70   | System    | Next Preset      | FD (modo normal)    |
-| 71   | System    | Previous Preset  | FI (modo normal)    |
-| 72   | System    | Next Bank        | BANCO (modo normal) |
+| 70   | System    | Next Preset      | BANCO button        |
+| 72   | System    | Next Bank        | PROG (corto)        |
 | 73   | System    | Shutdown         | PROG → ShUt         |
 | 74   | System    | Reboot           | PROG → rEbt         |
 | 75   | System    | Toggle Hotspot   | PROG → Hot          |
-| 76   | System    | Next Snapshot    | PROG (corto)        |
+| 76   | System    | Next Snapshot    | FD button           |
+| 77   | System    | Previous Snapshot| FI button           |
 
 ## Estructura del repositorio
 
