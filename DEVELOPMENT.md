@@ -35,9 +35,10 @@ UDP replies: `boost+`, `boost-`, `klok`, `ok`, `-1`, `k:<name>`, `b:<name>`, `p:
 **Preset selection mode** (BANCO long press): FD/FI remapped to preset navigation (notes 70/71). BANCO or BOOST exits back to normal mode.
 
 **Display mapping:**
-- **tmA** = preset (`b:`/`p:`)
-- **tmB** = snapshot (`s:`)
+- **tmA** = preset (`b:`/`p:`) — normal mode
+- **tmB** = snapshot (`s:`) — normal mode
 - `k:` (bank) no se muestra en pantalla
+- **Modo preset** (BANCO long): tmA = "PrSt" (fijo), tmB = preset actual
 
 **Firmware ESP:** `esp-firmware/main.py` incluido en este repo.
 

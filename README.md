@@ -105,7 +105,8 @@ En **modo selección de preset** (BANCO largo):
 | BANCO | — | Sale del modo (cancelar) |
 | BOOST | — | Sale del modo (confirmar) |
 
-**Display:** tmA = preset, tmB = snapshot
+**Display normal:** tmA = preset, tmB = snapshot
+**Display modo preset:** tmA = `PrSt`, tmB = preset (se actualiza al navegar)
 
 ### Menú PROG
 

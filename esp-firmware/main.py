@@ -93,10 +93,12 @@ def limpiartms():
   tmB.write([0, 0, 0, 0])
 
 # Update displays: tmA=preset, tmB=snapshot
+# In preset mode, tmA stays frozen ("PrSt"), only tmB updates
 def cargar_tms(t=None):
   if t is None:
     t = ultimo_texto
-  tmA.show(sanitize_tm1637(t[0]))
+  if modo != 'preset':
+    tmA.show(sanitize_tm1637(t[0]))
   tmB.show(sanitize_tm1637(t[1]))
 
 # Scroll welcome at startup
@@ -285,6 +287,7 @@ def F_banco():
   if modo == 'preset':
     print('preset: BANCO -> salir')
     modo = 'normal'
+    cargar_tms()
     return
   if modo == 'normal':
     # Check for long press (hold > swtime ms)
@@ -340,6 +343,7 @@ def F_boost():
   if modo == 'preset':
     print('preset: BOOST -> salir')
     modo = 'normal'
+    cargar_tms()
     time.sleep(0.1)
   elif modo == 'normal':
     control_UDP(enviarudp('boost'))
