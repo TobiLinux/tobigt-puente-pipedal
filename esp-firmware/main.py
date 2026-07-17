@@ -278,9 +278,28 @@ def prog_executar(accion):
   elif accion == "Hot":
     enviarudp("note_on channel=0 note=75")
 
-# BANCO: next preset (normal) or confirm PROG action
+# BANCO: short = next preset, long = preset selection mode
+# In preset mode: BANCO short exits back to normal
 def F_banco():
-  if modo=='normal':
+  global modo
+  if modo == 'preset':
+    print('preset: BANCO -> salir')
+    modo = 'normal'
+    return
+  if modo == 'normal':
+    # Check for long press (hold > swtime ms)
+    if not BANCO.value():
+      t = time.ticks_ms()
+      while not BANCO.value():
+        if time.ticks_diff(time.ticks_ms(), t) > swtime:
+          print('entrando a modo preset')
+          modo = 'preset'
+          tmA.show('PrSt')
+          time.sleep(0.5)
+          cargar_tms()
+          return
+        time.sleep_ms(10)
+    # Short press: next preset
     print('normal: BANCO -> next preset')
     control_UDP(enviarudp("note_on channel=0 note=70"))
     time.sleep(0.1)
@@ -289,31 +308,43 @@ def F_banco():
     prog_executar(opciones_prog[opcion_actual])
     time.sleep(0.1)
 
-# FD: next snapshot (normal) or next PROG menu option
+# FD: next snapshot (normal), next preset (preset mode), next PROG menu
 def F_der():
-  if modo=='normal':
+  if modo == 'preset':
+    print('preset: FD -> next preset')
+    control_UDP(enviarudp("note_on channel=0 note=70"))
+    time.sleep(0.1)
+  elif modo == 'normal':
     print('normal: FD -> next snapshot')
     control_UDP(enviarudp("note_on channel=0 note=76"))
     time.sleep(0.1)
-  elif modo=='prog':
+  elif modo == 'prog':
     prog_siguiente()
 
-# FI: previous snapshot (normal) or previous PROG menu option
+# FI: previous snapshot (normal), prev preset (preset mode), prev PROG menu
 def F_izq():
-  if modo=='normal':
+  if modo == 'preset':
+    print('preset: FI -> prev preset')
+    control_UDP(enviarudp("note_on channel=0 note=71"))
+    time.sleep(0.1)
+  elif modo == 'normal':
     print('normal: FI -> prev snapshot')
     control_UDP(enviarudp("note_on channel=0 note=77"))
     time.sleep(0.1)
-  elif modo=='prog':
+  elif modo == 'prog':
     prog_anterior()
 
-# BOOST: toggle boost (normal) or exit PROG mode
+# BOOST: toggle boost (normal), exit preset/PROG mode
 def F_boost():
   global modo
-  if modo=='normal':
+  if modo == 'preset':
+    print('preset: BOOST -> salir')
+    modo = 'normal'
+    time.sleep(0.1)
+  elif modo == 'normal':
     control_UDP(enviarudp('boost'))
     time.sleep(0.1)
-  elif modo=='prog':
+  elif modo == 'prog':
     print('prog: BOOST -> salir')
     modo = 'normal'
     cargar_tms()
@@ -333,7 +364,7 @@ def boton(i):
 # PROG: short press = next bank (note 72), long press = PROG menu
 def boton_PROG():
   global modo, opcion_actual, last_prog_ms
-  if modo == 'prog':
+  if modo == 'prog' or modo == 'preset':
     return
   if not PROG.value():
     t = time.ticks_ms()

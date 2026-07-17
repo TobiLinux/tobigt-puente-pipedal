@@ -91,9 +91,19 @@ docs](https://rerdavies.github.io/pipedal/midi.html) para más detalles):
 |-------|------|----------------|
 | FD (der) | 76 | Next Snapshot |
 | FI (izq) | 77 | Previous Snapshot |
-| BANCO | 70 | Next Preset |
+| BANCO (corto) | 70 | Next Preset |
+| BANCO (largo) | — | Entra en modo selección de preset |
 | BOOST | 60 (toggle) | Boost on/off |
 | PROG (corto) | 72 | Next Bank |
+
+En **modo selección de preset** (BANCO largo):
+
+| Botón | Nota | Acción |
+|-------|------|--------|
+| FD | 70 | Next Preset |
+| FI | 71 | Previous Preset |
+| BANCO | — | Sale del modo (cancelar) |
+| BOOST | — | Sale del modo (confirmar) |
 
 **Display:** tmA = preset, tmB = snapshot
 

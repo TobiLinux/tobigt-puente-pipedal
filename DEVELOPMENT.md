@@ -25,11 +25,14 @@ Three async layers in `animalMidi.py`:
 UDP replies: `boost+`, `boost-`, `klok`, `ok`, `-1`, `k:<name>`, `b:<name>`, `p:<name>`, `s:<name>`.
 
 **ESP stateless** — todo el estado vive en PiPedal. La ESP solo manda notas fijas:
-- `note=70` → Next Preset (BANCO button)
+- `note=70` → Next Preset (BANCO short, FD/FI in preset mode)
+- `note=71` → Previous Preset (FI in preset mode)
 - `note=72` → Next Bank (PROG short press)
 - `note=76` → Next Snapshot (FD button)
 - `note=77` → Previous Snapshot (FI button)
 - `boost` → toggle MIDI note 60
+
+**Preset selection mode** (BANCO long press): FD/FI remapped to preset navigation (notes 70/71). BANCO or BOOST exits back to normal mode.
 
 **Display mapping:**
 - **tmA** = preset (`b:`/`p:`)
