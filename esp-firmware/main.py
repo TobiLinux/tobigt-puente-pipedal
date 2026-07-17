@@ -106,23 +106,24 @@ def seleccion_RED():
     time.sleep(1)
     red='anim'
 
-# Send UDP command, collect replies (up to 1s)
+# Send UDP command, return on first reply (up to 100ms max)
 def enviarudp(a):
   global sock_global
   responses = []
   try:
     print('sending "%s"' % a, credenciales.IP_SERVER_AP, credenciales.PUERTO)
     sock_global.sendto(a, (credenciales.IP_SERVER_AP, credenciales.PUERTO))
-    deadline = time.ticks_ms() + 1000
+    deadline = time.ticks_ms() + 100
     while time.ticks_diff(deadline, time.ticks_ms()) > 0:
       try:
         data, server = sock_global.recvfrom(256)
         msg = data.decode('utf-8')
         print('received "%s"' % msg)
         responses.append(msg)
+        break
       except OSError:
         pass
-      time.sleep_ms(10)
+      time.sleep_ms(5)
   except Exception as e:
     print('socket error:', e)
     return ['err1']
@@ -274,22 +275,22 @@ def F_banco():
     # Short press: next preset
     print('normal: BANCO -> next preset')
     control_UDP(enviarudp("note_on channel=0 note=70"))
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo=='prog':
     print('prog: BANCO -> confirmar')
     prog_executar(opciones_prog[opcion_actual])
-    time.sleep(0.1)
+    time.sleep(0.02)
 
 # FD: next snapshot (normal), next preset (preset mode), next PROG menu
 def F_der():
   if modo == 'preset':
     print('preset: FD -> next preset')
     control_UDP(enviarudp("note_on channel=0 note=70"))
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo == 'normal':
     print('normal: FD -> next snapshot')
     control_UDP(enviarudp("note_on channel=0 note=76"))
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo == 'prog':
     prog_siguiente()
 
@@ -298,11 +299,11 @@ def F_izq():
   if modo == 'preset':
     print('preset: FI -> prev preset')
     control_UDP(enviarudp("note_on channel=0 note=71"))
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo == 'normal':
     print('normal: FI -> prev snapshot')
     control_UDP(enviarudp("note_on channel=0 note=77"))
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo == 'prog':
     prog_anterior()
 
@@ -313,15 +314,15 @@ def F_boost():
     print('preset: BOOST -> salir')
     modo = 'normal'
     cargar_tms()
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo == 'normal':
     control_UDP(enviarudp('boost'))
-    time.sleep(0.1)
+    time.sleep(0.02)
   elif modo == 'prog':
     print('prog: BOOST -> salir')
     modo = 'normal'
     cargar_tms()
-    time.sleep(0.1)
+    time.sleep(0.02)
 
 # Dispatch IRQ pin to button handler
 def boton(i):
@@ -380,4 +381,4 @@ while True:
     print('IRQ: pin=%s modo=%s' % (pin_i, modo))
     boton(pin_i)
     inter = False
-  time.sleep_ms(50)
+  time.sleep_ms(20)
