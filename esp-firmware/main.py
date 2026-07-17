@@ -74,9 +74,11 @@ def limpiartms():
 def cargar_tms(t=None):
   if t is None:
     t = ultimo_texto
-  if modo != 'preset':
+  if modo == 'preset':
+    tmB.show(sanitize_tm1637(t[0]))
+  else:
     tmA.show(sanitize_tm1637(t[0]))
-  tmB.show(sanitize_tm1637(t[1]))
+    tmB.show(sanitize_tm1637(t[1]))
 
 # Scroll welcome at startup
 def bienvenida():
@@ -161,7 +163,7 @@ def control_UDP(responses):
     elif res[0:2] == 'b:' or res[0:2] == 'p:':
       name = sanitize_tm1637(res[2:])
       ultimo_texto[0] = name
-      if modo == 'normal': cargar_tms()
+      if modo != 'prog': cargar_tms()
       server_updated = True
     elif res[0:2] == 's:':
       name = sanitize_tm1637(res[2:])
