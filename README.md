@@ -60,8 +60,7 @@ esp-firmware/
 ├── main.py           # Programa principal
 ├── tm1637.py         # Driver para displays TM1637
 ├── conectar.py       # Conexión WiFi (configurar SSID/PSK domésticos)
-├── credenciales.py   # IP del server + puerto UDP
-└── config.json       # Config persistente (se crea solo en el ESP)
+└── credenciales.py   # IP del server + puerto UDP
 ```
 
 En `conectar.py` y `credenciales.py`, ajustar las IPs, SSID y PSK según tu

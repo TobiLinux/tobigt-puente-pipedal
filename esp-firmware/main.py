@@ -3,27 +3,8 @@
 # BOOST -> D8 > 15   PROG -> D0 > 16
 # tm1637A: clk=2, dio=0   tm1637B: clk=4, dio=5
 
-# Boot: check config.json for FTP mode flag
-try:
-  f = open('config.json')
-  import json, conectar
-  config = json.loads(f.read())
-  f.close()
-  print(config)
-  if config.get('cliente').get('ftp'):
-    config['cliente']['ftp'] = 0
-    f = open('config.json', 'w')
-    f.write(json.dumps(config))
-    f.close()
-    conectar.conectar_animal(0)
-    import ftp
-    import machine
-    machine.reset()
-except Exception as a:
-      print('error:   ', a)
-
 from machine import Pin
-import time, network, socket, tm1637, credenciales
+import time, socket, tm1637, credenciales, conectar
 
 # Button pins (pulled up, falling edge = press)
 FD = Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)
@@ -56,21 +37,17 @@ last_irq_ms = 0
 last_prog_ms = 0
 DEBOUNCE_MS = 200
 
-# TM1637 cannot display these chars; map to safe alternatives
-_TM1637_REPLACE = {
-    '(': ' ', ')': ' ', '[': ' ', ']': ' ',
-    '{': ' ', '}': ' ', '<': ' ', '>': ' ',
-    '/': ' ', '\\': ' ', '"': ' ', "'": ' ',
-    '`': ' ', '!': ' ', '@': 'a', '#': ' ',
-    '$': 'S', '%': ' ', '^': ' ', '&': ' ',
-    '*': ' ', '+': ' ', '=': ' ', '?': ' ',
-    ',': ' ', '.': ' ', ':': ' ', ';': ' ',
-    '~': ' ',
-}
-
 def sanitize_tm1637(s):
   s = str(s)
-  return ''.join(_TM1637_REPLACE.get(c, c) for c in s)
+  out = ''
+  for c in s:
+    o = ord(c)
+    if o == 64: out += 'a'      # @
+    elif o == 36: out += 'S'    # $
+    elif o in (40,41,91,93,123,125,60,62): out += ' '  # brackets
+    elif o in (33,34,35,37,38,39,42,43,44,45,46,47,58,59,61,63,92,94,96,126): out += ' '
+    else: out += c
+  return out
 
 # IRQ handler with 200ms debounce
 def btn_press(pin):
@@ -108,16 +85,6 @@ def bienvenida():
   tmA.brightness(2)
   tmB.brightness(2)
   limpiartms()
-
-# Persist key/value pair to config.json on ESP
-def cargar_config(key, value):
-  global config
-  print(config)
-  config['cliente'][key] = value
-  n_config = json.dumps(config)
-  f = open('config.json', 'w')
-  f.write(n_config)
-  f.close()
 
 # On startup: BOOST pressed = connect to home WiFi, else = PiPedal AP
 def seleccion_RED():
