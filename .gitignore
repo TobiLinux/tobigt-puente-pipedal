@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+*.mpy
 deploy.sh
 esp-firmware/config.json

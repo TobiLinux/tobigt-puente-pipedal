@@ -225,11 +225,15 @@ def handle_pedalboard(body, transport, state):
                     if q is None:
                         logging.warning("Tuner: ws_request_queue is None, skipping")
                     else:
+                        tuner_activated = item.get("isEnabled", False)
                         logging.info("Tuner: found instanceId=%s activated=%s client=%s",
-                            state.tuner_instance_id, state.tuner_activated, state.ws_client_id)
+                            state.tuner_instance_id, tuner_activated, state.ws_client_id)
+                        # Extraer estado de controles
                         for cv in item.get("controlValues", []):
-                            if cv.get("key") == "MUTE":
-                                state.mute_state = cv.get("value", 0)
+                            k = cv.get("key")
+                            v = cv.get("value")
+                            if k == "MUTE":
+                                state.mute_state = v if v is not None else 0
                                 state.mute_state_known = True
                         if not state.tuner_activated:
                             state.tuner_activated = True
@@ -239,7 +243,8 @@ def handle_pedalboard(body, transport, state):
                         if not state.tuner_subscribed and not state.tuner_sub_pending:
                             state.tuner_sub_pending = True
                             q.put_nowait(({"message": "monitorPort"},
-                                {"instanceId": state.tuner_instance_id, "key": "FREQ", "updateRate": 0.03333}))
+                                {"instanceId": state.tuner_instance_id, "key": "FREQ",
+                                    "updateRate": 0.03333}))
                     break
 
     if name:
@@ -286,7 +291,8 @@ async def ws_loop(udp_transport, state, stop_event):
                         if isinstance(hdr, dict) and hdr.get("message") == "ehlo":
                             state.ws_client_id = data[1] if len(data) > 1 else None
                             state.tuner_subscribed = False
-                            state.tuner_sub_handle = None
+                            state.tuner_sub_handle_notify = None
+                            state.tuner_sub_handle_freq = None
                             state.tuner_sub_pending = False
                             state.tuner_activated = False
                             logging.info("WS << ehlo clientId=%s", state.ws_client_id)
@@ -335,6 +341,13 @@ async def ws_loop(udp_transport, state, stop_event):
                         msg = header.get("message", "")
                         is_reply = "reply" in header
 
+                        # PiPedal espera confirmación para todo mensaje con replyTo
+                        reply_to = header.get("replyTo")
+                        if reply_to is not None:
+                            ack = [{"reply": reply_to, "message": msg}, True]
+                            await ws.send(json.dumps(ack))
+                            logging.info("WS >> (ack) %s", json.dumps(ack))
+
                         if msg == "onBanksChanged" or (msg == "getBankIndex" and is_reply):
                             handle_banks(body, udp_transport, state)
 
@@ -343,6 +356,13 @@ async def ws_loop(udp_transport, state, stop_event):
 
                         elif msg == "onPedalboardChanged" or (msg == "currentPedalboard" and is_reply):
                             handle_pedalboard(body, udp_transport, state)
+
+                        elif msg == "monitorPort" and is_reply and isinstance(body, int):
+                            state.tuner_sub_handle = body
+                            if not state.tuner_subscribed:
+                                state.tuner_subscribed = True
+                                state.tuner_sub_pending = False
+                            logging.info("Tuner: subscribed monitorPort handle=%s", body)
 
                         elif msg == "onSelectedSnapshotChanged":
                             handle_snapshot(body, udp_transport, state)
@@ -353,13 +373,15 @@ async def ws_loop(udp_transport, state, stop_event):
                             handle = body.get("subscriptionHandle")
                             value = body.get("value")
                             logging.info("MonitorPortOutput: handle=%s value=%s", handle, value)
+                            # Guardar handle de subscripción
                             if handle is not None and state.tuner_sub_handle is None:
                                 state.tuner_sub_handle = handle
+                            if not state.tuner_subscribed and state.tuner_sub_handle is not None:
                                 state.tuner_subscribed = True
                                 state.tuner_sub_pending = False
-                                logging.info("Tuner subscribed: handle=%s", handle)
-                            if value is not None and value >= 0:
-                                note_int = int(value)
+                            # Procesar solo valores de nota válidos (> 0)
+                            if value is not None and value > 0:
+                                note_int = int(round(value))
                                 cents = int(round((value - note_int) * 100))
                                 note_name = NOTE_NAMES[note_int % 12]
                                 octave = note_int // 12 - 1
@@ -379,16 +401,6 @@ async def ws_loop(udp_transport, state, stop_event):
                                         and value is not None):
                                     state.mute_state = int(value)
                                     state.mute_state_known = True
-                                if (inst_id == state.tuner_instance_id
-                                        and symbol == "FREQ"
-                                        and value is not None and value >= 0):
-                                    note_int = int(value)
-                                    cents = int(round((value - note_int) * 100))
-                                    note_name = NOTE_NAMES[note_int % 12]
-                                    octave = note_int // 12 - 1
-                                    t_msg = f"t:{note_name}{octave}{cents:+03d}"
-                                    logging.info("Tuner data (onControlChanged): %s", t_msg)
-                                    udp_send(udp_transport, t_msg, state)
 
                         else:
                             logging.info("WS desconocido: msg=%s body=%s", msg, json.dumps(body))

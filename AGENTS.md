@@ -26,7 +26,7 @@ UDP replies: `boost+`, `boost-`, `klok`, `ok`, `-1`, `k:<name>`, `b:<name>`, `p:
 
 **MUTE workaround:** plugin MIDI bindings en PiPedal tienen un bug (solo funcionan UNA vez por carga de preset, luego se traban). MUTE se controla por WS `setControl` con `symbol:"MUTE"` (no `key:"MUTE"` — PiPedal ignora `key` y responde con `symbol=""`). Estado MUTE se trackea desde `currentPedalboard` y `onControlChanged`. Note 78 interceptado en `midi_to_GT`, no se envía por MIDI.
 
-**FREQ via monitorPort:** `monitorPort` a `FREQ` siempre devuelve `value=-1` (único evento al suscribirse), nunca nota detectada. Hipótesis: requiere `setPedalboardItemEnable` para habilitar salida de datos, pero ese mensaje no existe en PiPedal (descartado). Posible alternativa: suscribir `onControlChanged` a FREQ, leer `out` port, o usar MIDI output del TooB Tuner.
+**FREQ via monitorPort:** Funciona correctamente suscribiendo `monitorPort` con `key:"FREQ"` y `updateRate: 0.03333`. El **ACK** es obligatorio: PiPedal necesita `[{"reply":<replyTo>,"message":"<eventName>"},true]` para cada push event. Sin ACK, no envía más eventos. Handle 91 recibe valores reales (ej: `33.006382` = A1+01¢) que se formatean como `t:A1+01` y se envían por UDP al ESP.
 
 **ESP stateless** — todo el estado vive en PiPedal. La ESP solo manda notas fijas:
 - `note=70` → Next Preset (binding de sistema)
@@ -106,6 +106,26 @@ cd tobigt-puente-pipedal && ./setup.sh
 - Installs systemd service `animalmidi.service` (`After=pipedald.service`)
 - Writes env file `/etc/animalmidi/env` (all `TOBIGT_*` vars optional, documented in file)
 - Service management: `systemctl [start|stop|status|restart] animalmidi`
+
+### Deployment
+
+**Pi (animalmidi bridge):**
+```sh
+cd tobigt-puente-pipedal && ./deploy.sh
+```
+Syncs all files to the Pi, runs `setup.sh` (idempotent), and starts the service.
+
+After deploying, restart: `ssh tobi@192.168.60.1 "sudo systemctl restart animalmidi"`
+
+**ESP firmware:**
+```sh
+cd tobigt-puente-pipedal && ./deploy-esp.sh
+```
+Requires `ampy` installed locally. Removes `.mpy` bytecode files (so `.py` is used) and uploads all `.py` files + `config.json`. Reset ESP after upload to apply.
+
+ESP connected via USB (default `/dev/ttyUSB1`, override with `TOBIGT_ESP_PORT`).
+
+Check bridge logs: `ssh tobi@192.168.60.1 "sudo journalctl -u animalmidi --no-pager -n 50"`
 
 ### Runtime config
 
