@@ -108,7 +108,10 @@ class TM1637(object):
     return segments
 
   def show(self, string, colon=False):
-    segments = self.encode_string(string)
+    s = str(string)
+    while len(s) < 4:
+      s += ' '
+    segments = self.encode_string(s)
     if len(segments) > 1 and colon:
       segments[1] |= 128
     self.write(segments[:4])
