@@ -24,8 +24,8 @@ Requiere:
 
 Configurar con:  ./setup.sh
 
-TODO: borrar este commit de prueba
 """
+
 
 import asyncio
 import json
@@ -35,6 +35,9 @@ import signal
 import subprocess
 import mido
 import websockets
+
+# MIDI note → nombre de nota (siempre sostenido)
+NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 
 # =============================================================================
@@ -66,6 +69,14 @@ class AppState:
         self.next_reply_id = 1
         self.last_esp_addr = None
         self.ws_request_queue = None
+        self.ws_client_id = None
+        self.tuner_instance_id = None
+        self.tuner_sub_handle = None
+        self.tuner_subscribed = False
+        self.tuner_sub_pending = False
+        self.tuner_activated = False
+        self.mute_state = 0
+        self.mute_state_known = False
 
 
 # =============================================================================
@@ -140,9 +151,15 @@ def midi_to_GT(msg, port, state):
         return "klok"
 
     try:
-        port.send(mido.Message.from_str(msg))
+        m = mido.Message.from_str(msg)
+        # note 78: MUTE toggle via WS setControl (MIDI binding buggy en PiPedal)
+        if m.type == "note_on" and m.note == 78:
+            return "__mute_toggle__"
+        logging.info("MIDI >> %s", m)
+        port.send(m)
         return "ok"
-    except Exception:
+    except Exception as e:
+        logging.warning("MIDI error: %s", e)
         return "-1"
 
 
@@ -194,6 +211,37 @@ def handle_pedalboard(body, transport, state):
     pb = body.get("pedalboard", body)
     name = pb.get("name", "")
     state.last_pedalboard["snapshots"] = pb.get("snapshots", [])
+
+    # Detectar instancia del afinador TooB Tuner y suscribirse
+    for key in ("pedalboardItems", "items", "serializedPedalboard"):
+        items = pb.get(key)
+        if isinstance(items, list):
+            for item in items:
+                uri = item.get("uri", "")
+                if isinstance(uri, str) and "toob-tuner" in uri.lower():
+                    state.tuner_instance_id = item.get("instanceId")
+                    logging.info("Tuner instanceId=%s", state.tuner_instance_id)
+                    q = state.ws_request_queue
+                    if q is None:
+                        logging.warning("Tuner: ws_request_queue is None, skipping")
+                    else:
+                        logging.info("Tuner: found instanceId=%s activated=%s client=%s",
+                            state.tuner_instance_id, state.tuner_activated, state.ws_client_id)
+                        for cv in item.get("controlValues", []):
+                            if cv.get("key") == "MUTE":
+                                state.mute_state = cv.get("value", 0)
+                                state.mute_state_known = True
+                        if not state.tuner_activated:
+                            state.tuner_activated = True
+                            logging.info("Tuner: first activation for instance %s",
+                                state.tuner_instance_id)
+                        # Suscribir monitorPort solo si no hay suscripción activa o pendiente
+                        if not state.tuner_subscribed and not state.tuner_sub_pending:
+                            state.tuner_sub_pending = True
+                            q.put_nowait(({"message": "monitorPort"},
+                                {"instanceId": state.tuner_instance_id, "key": "FREQ", "updateRate": 0.03333}))
+                    break
+
     if name:
         logging.info("Pedalboard: %s", name)
         udp_send(transport, f"p:{name}", state)
@@ -236,7 +284,12 @@ async def ws_loop(udp_transport, state, stop_event):
                     if isinstance(data, list) and len(data) > 0:
                         hdr = data[0]
                         if isinstance(hdr, dict) and hdr.get("message") == "ehlo":
-                            logging.info("WS << ehlo clientId=%s", data[1] if len(data) > 1 else "?")
+                            state.ws_client_id = data[1] if len(data) > 1 else None
+                            state.tuner_subscribed = False
+                            state.tuner_sub_handle = None
+                            state.tuner_sub_pending = False
+                            state.tuner_activated = False
+                            logging.info("WS << ehlo clientId=%s", state.ws_client_id)
                 except (asyncio.TimeoutError, json.JSONDecodeError, IndexError):
                     logging.warning("WS no recibió ehlo (procediendo de todas formas)")
 
@@ -253,9 +306,14 @@ async def ws_loop(udp_transport, state, stop_event):
                         req = state.ws_request_queue.get_nowait()
                         req_id = state.next_reply_id
                         state.next_reply_id += 1
-                        req["replyTo"] = req_id
-                        await ws.send(json.dumps([req]))
-                        logging.info("WS >> %s", json.dumps(req))
+                        if isinstance(req, tuple):
+                            header, ws_body = req
+                        else:
+                            header, ws_body = req, None
+                        header["replyTo"] = req_id
+                        payload = [header, ws_body] if ws_body is not None else [header]
+                        await ws.send(json.dumps(payload))
+                        logging.info("WS >> %s", json.dumps(payload))
 
                     # Esperar mensaje con timeout para no bloquear la cola
                     try:
@@ -265,6 +323,7 @@ async def ws_loop(udp_transport, state, stop_event):
 
                     try:
                         data = json.loads(raw)
+                        logging.info("WS << %s", raw)
 
                         if not isinstance(data, list) or not data:
                             continue
@@ -287,6 +346,49 @@ async def ws_loop(udp_transport, state, stop_event):
 
                         elif msg == "onSelectedSnapshotChanged":
                             handle_snapshot(body, udp_transport, state)
+
+                        elif msg == "onMonitorPortOutput":
+                            if not isinstance(body, dict):
+                                continue
+                            handle = body.get("subscriptionHandle")
+                            value = body.get("value")
+                            logging.info("MonitorPortOutput: handle=%s value=%s", handle, value)
+                            if handle is not None and state.tuner_sub_handle is None:
+                                state.tuner_sub_handle = handle
+                                state.tuner_subscribed = True
+                                state.tuner_sub_pending = False
+                                logging.info("Tuner subscribed: handle=%s", handle)
+                            if value is not None and value >= 0:
+                                note_int = int(value)
+                                cents = int(round((value - note_int) * 100))
+                                note_name = NOTE_NAMES[note_int % 12]
+                                octave = note_int // 12 - 1
+                                t_msg = f"t:{note_name}{octave}{cents:+03d}"
+                                logging.info("Tuner data: %s", t_msg)
+                                udp_send(udp_transport, t_msg, state)
+
+                        elif msg == "onControlChanged":
+                            if isinstance(body, dict):
+                                logging.info("ControlChanged: instance=%s symbol=%s value=%s",
+                                    body.get("instanceId"), body.get("symbol"), body.get("value"))
+                                inst_id = body.get("instanceId")
+                                symbol = body.get("symbol")
+                                value = body.get("value")
+                                if (inst_id == state.tuner_instance_id
+                                        and symbol == "MUTE"
+                                        and value is not None):
+                                    state.mute_state = int(value)
+                                    state.mute_state_known = True
+                                if (inst_id == state.tuner_instance_id
+                                        and symbol == "FREQ"
+                                        and value is not None and value >= 0):
+                                    note_int = int(value)
+                                    cents = int(round((value - note_int) * 100))
+                                    note_name = NOTE_NAMES[note_int % 12]
+                                    octave = note_int // 12 - 1
+                                    t_msg = f"t:{note_name}{octave}{cents:+03d}"
+                                    logging.info("Tuner data (onControlChanged): %s", t_msg)
+                                    udp_send(udp_transport, t_msg, state)
 
                         else:
                             logging.info("WS desconocido: msg=%s body=%s", msg, json.dumps(body))
@@ -314,17 +416,29 @@ async def udp_controller(queue, midi_port, udp_transport, state):
     usando la misma dirección desde la que llegó el mensaje original.
 
     Después de cada comando que modifica el estado (todo menos `kl`),
-    encola una petición a PiPedal para obtener el estado actual y
-    reflejarlo en la ESP.
+    espera 200ms para que PiPedal procese bindings MIDI, luego encola
+    currentPedalboard para reflejar el cambio en la ESP.
     """
     while True:
         msg, addr = await queue.get()
         logging.info(f"UDP << {msg}")
         reply = midi_to_GT(msg, midi_port, state)
+        if reply == "__mute_toggle__":
+            if state.ws_request_queue is not None and state.tuner_instance_id is not None:
+                new_val = 1 - state.mute_state
+                state.ws_request_queue.put_nowait((
+                    {"message": "setControl"},
+                    {"instanceId": state.tuner_instance_id, "symbol": "MUTE", "value": new_val}
+                ))
+                state.mute_state = new_val
+                state.mute_state_known = True
+                reply = "ok"
+            else:
+                reply = "-1"
         if reply:
             udp_transport.sendto(reply.encode("utf-8"), addr)
             if msg != "kl" and state.ws_request_queue is not None:
-                state.ws_request_queue.put_nowait({"message": "getBankIndex"})
+                await asyncio.sleep(0.2)
                 state.ws_request_queue.put_nowait({"message": "currentPedalboard"})
 
 
